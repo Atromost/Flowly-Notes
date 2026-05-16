@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClipForge — Paste screenshots. Save instantly.</title>
+<style>
+  /* ── Reset & base ──────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f5f2ec;
+    --surface:   #edeae2;
+    --surface2:  #e4e0d7;
+    --border:    #c8c3b8;
+    --border2:   #b0ab9f;
+    --text:      #1a1917;
+    --text2:     #4a4742;
+    --text3:     #7a766f;
+    --accent:    #1a1917;
+    --accent-bg: #1a1917;
+    --accent-fg: #f5f2ec;
+    --danger:    #7a2020;
+    --warn:      #7a5a10;
+    --ok:        #1a5a2a;
+    --radius:    6px;
+    --mono:      'Courier New', Courier, 'Lucida Console', monospace;
+    --trans:     0.15s ease;
+  }
+
+  [data-theme="dark"] {
+    --bg:        #141210;
+    --surface:   #1e1c19;
+    --surface2:  #282520;
+    --border:    #3a3730;
+    --border2:   #504d45;
+    --text:      #f0ede6;
+    --text2:     #b8b4ac;
+    --text3:     #7a766e;
+    --accent:    #f0ede6;
+    --accent-bg: #f0ede6;
+    --accent-fg: #141210;
+    --danger:    #d97070;
+    --warn:      #c9a050;
+    --ok:        #6abf7a;
+  }
+
+  html, body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.6;
+    transition: background var(--trans), color var(--trans);
+  }
+
+  /* ── Layout ────────────────────────────────────── */
+  .app {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+
+  /* ── Header ────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+    gap: 1rem;
+  }
+
+  .header-left {}
+
+  .logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .logo span {
+    color: var(--text3);
+    font-weight: normal;
+  }
+
+  .tagline {
+    font-size: 12px;
+    color: var(--text3);
+    letter-spacing: 0.02em;
+  }
+
+  .theme-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color var(--trans), color var(--trans), background var(--trans);
+    flex-shrink: 0;
+  }
+
+  .theme-btn:hover {
+    border-color: var(--border2);
+    color: var(--text);
+    background: var(--surface);
+  }
+
+  /* ── Section labels ────────────────────────────── */
+  .section-label {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Paste zone ────────────────────────────────── */
+  .paste-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius);
+    padding: 3.5rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color var(--trans), background var(--trans);
+    background: var(--surface);
+    margin-bottom: 1.25rem;
+    position: relative;
+    outline: none;
+  }
+
+  .paste-zone:hover,
+  .paste-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--surface2);
+  }
+
+  .paste-zone:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+
+  .paste-icon {
+    font-size: 2.5rem;
+    line-height: 1;
+    margin-bottom: 0.75rem;
+    color: var(--text3);
+    user-select: none;
+  }
+
+  .paste-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: var(--text2);
+    margin-bottom: 0.4rem;
+  }
+
+  .paste-hint {
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .paste-hint kbd {
+    display: inline-block;
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--bg);
+    vertical-align: baseline;
+  }
+
+  /* ── Status line ───────────────────────────────── */
+  .status-line {
+    font-size: 12px;
+    color: var(--text3);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 20px;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+
+  .status-badge.ready   { color: var(--text3); }
+  .status-badge.ok      { color: var(--ok); }
+  .status-badge.error   { color: var(--danger); }
+  .status-badge.loading { color: var(--warn); }
+
+  /* ── Preview section ───────────────────────────── */
+  .preview-section {
+    display: none;
+    margin-bottom: 1.5rem;
+  }
+
+  .preview-section.visible { display: block; }
+
+  .preview-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    margin-bottom: 0.75rem;
+    position: relative;
+  }
+
+  /* Checkerboard for transparency */
+  .preview-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-conic-gradient(var(--surface2) 0% 25%, var(--surface) 0% 50%);
+    background-size: 16px 16px;
+    z-index: 0;
+  }
+
+  #preview-img {
+    max-width: 100%;
+    max-height: 420px;
+    display: block;
+    position: relative;
+    z-index: 1;
+    object-fit: contain;
+  }
+
+  .img-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    font-size: 12px;
+    color: var(--text3);
+    margin-bottom: 0.5rem;
+  }
+
+  .img-meta span strong {
+    color: var(--text2);
+    font-weight: normal;
+  }
+
+  /* ── Export panel ──────────────────────────────── */
+  .export-section {
+    display: none;
+    margin-bottom: 1.5rem;
+  }
+
+  .export-section.visible { display: block; }
+
+  .export-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  @media (max-width: 500px) {
+    .export-grid { grid-template-columns: 1fr; }
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .field-label {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.04em;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 6px 9px;
+    width: 100%;
+    outline: none;
+    transition: border-color var(--trans);
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  select:focus {
+    border-color: var(--border2);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    padding-right: 28px;
+    cursor: pointer;
+  }
+
+  .quality-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .quality-val {
+    font-size: 12px;
+    color: var(--text2);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* ── Resize option ─────────────────────────────── */
+  .resize-extra {
+    display: none;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .resize-extra.visible {
+    display: flex;
+  }
+
+  /* ── Action buttons ────────────────────────────── */
+  .action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 0.5rem;
+  }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 7px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background var(--trans), border-color var(--trans), color var(--trans), transform 0.08s;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text2);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    outline: none;
+  }
+
+  .btn:hover {
+    border-color: var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--accent-bg);
+    color: var(--accent-fg);
+    border-color: var(--accent-bg);
+  }
+
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--accent-bg) 85%, var(--bg));
+    border-color: color-mix(in srgb, var(--accent-bg) 85%, var(--bg));
+    color: var(--accent-fg);
+  }
+
+  .btn:focus { border-color: var(--border2); }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ── Keyboard shortcut hint ────────────────────── */
+  .shortcut-hint {
+    font-size: 11px;
+    color: var(--text3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .shortcut-hint kbd {
+    display: inline-block;
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    padding: 0px 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text2);
+    background: var(--bg);
+    vertical-align: middle;
+  }
+
+  /* ── Privacy note ──────────────────────────────── */
+  .privacy {
+    font-size: 11px;
+    color: var(--text3);
+    border-top: 1px solid var(--border);
+    padding-top: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .privacy-icon {
+    font-size: 1rem;
+  }
+
+  /* ── Flash feedback ────────────────────────────── */
+  @keyframes flash {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+
+  .flash { animation: flash 0.3s ease; }
+
+  /* ── Copy success toast ────────────────────────── */
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--accent-bg);
+    color: var(--accent-fg);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 100;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── Background selector for JPEG ─────────────── */
+  .bg-group {
+    display: none;
+  }
+
+  .bg-group.visible { display: flex; flex-direction: column; gap: 4px; }
+
+  .radio-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .radio-row label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text2);
+    cursor: pointer;
+  }
+
+  input[type="radio"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* ── Scrollbar ─────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">Clip<span>Forge</span></div>
+      <div class="tagline">Paste screenshots. Save instantly.</div>
+    </div>
+    <button class="theme-btn" id="theme-btn" title="Toggle theme">[light]</button>
+  </header>
+
+  <!-- Paste zone -->
+  <div class="section-label">[paste]</div>
+
+  <div class="paste-zone" id="paste-zone" tabindex="0" role="region" aria-label="Paste image area">
+    <div class="paste-icon">⌨</div>
+    <div class="paste-title">Paste an image here</div>
+    <div class="paste-hint">
+      Press <kbd>Ctrl+V</kbd> after copying a screenshot &nbsp;·&nbsp; or drag &amp; drop an image
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-line" id="status-line">
+    <span class="status-badge ready" id="status-badge">[ready]</span>
+    <span id="status-text">waiting for clipboard image</span>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-section" id="preview-section">
+    <div class="section-label">[preview]</div>
+    <div class="preview-wrap">
+      <img id="preview-img" src="" alt="Pasted image preview">
+    </div>
+    <div class="img-meta" id="img-meta"></div>
+  </div>
+
+  <!-- Export panel -->
+  <div class="export-section" id="export-section">
+    <div class="section-label">[download]</div>
+
+    <div class="export-grid">
+
+      <!-- Filename -->
+      <div class="field-group" style="grid-column: 1 / -1;">
+        <label class="field-label" for="filename">filename</label>
+        <input type="text" id="filename" placeholder="clipforge-2026-05-16.png" autocomplete="off" spellcheck="false">
+      </div>
+
+      <!-- Format -->
+      <div class="field-group">
+        <label class="field-label" for="fmt">format</label>
+        <select id="fmt">
+          <option value="png">PNG — lossless</option>
+          <option value="jpeg">JPEG — lossy</option>
+          <option value="webp">WebP — lossy</option>
+        </select>
+      </div>
+
+      <!-- Resize -->
+      <div class="field-group">
+        <label class="field-label" for="resize">resize</label>
+        <select id="resize">
+          <option value="original">Original size</option>
+          <option value="50">50% of original</option>
+          <option value="custom">Custom width (px)</option>
+        </select>
+        <div class="resize-extra" id="resize-extra">
+          <input type="number" id="custom-width" placeholder="Width px" min="1" max="16000" style="width:100%;">
+        </div>
+      </div>
+
+      <!-- Quality (JPEG/WebP only) -->
+      <div class="field-group" id="quality-group">
+        <label class="field-label" for="quality">quality</label>
+        <div class="quality-row">
+          <input type="range" id="quality" min="1" max="100" value="92">
+          <span class="quality-val" id="quality-val">92%</span>
+        </div>
+      </div>
+
+      <!-- BG for JPEG -->
+      <div class="bg-group" id="bg-group">
+        <label class="field-label">bg (for transparency)</label>
+        <div class="radio-row">
+          <label><input type="radio" name="bg" value="white" checked> White</label>
+          <label><input type="radio" name="bg" value="black"> Black</label>
+        </div>
+      </div>
+
+    </div><!-- /export-grid -->
+
+    <!-- Action buttons -->
+    <div class="action-row">
+      <button class="btn btn-primary" id="download-btn">[download]</button>
+      <button class="btn" id="copy-btn">[copy to clipboard]</button>
+      <button class="btn" id="clear-btn">[clear]</button>
+    </div>
+
+    <!-- Keyboard shortcuts reminder -->
+    <div class="shortcut-hint">
+      <span><kbd>D</kbd> download</span>
+      <span><kbd>Esc</kbd> clear</span>
+      <span><kbd>Ctrl+V</kbd> paste new</span>
+    </div>
+
+  </div><!-- /export-section -->
+
+  <!-- Privacy note -->
+  <div class="privacy">
+    <span class="privacy-icon">⬛</span>
+    Images stay in your browser. Nothing is uploaded.
+  </div>
+
+</div><!-- /app -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── State ─────────────────────────────────────────────── */
+let currentBlob = null;     // original pasted image blob
+let currentObjectURL = null;
+let originalW = 0, originalH = 0;
+
+/* ── Theme ─────────────────────────────────────────────── */
+(function initTheme() {
+  const saved = localStorage.getItem('clipforge-theme') || 'light';
+  applyTheme(saved);
+})();
+
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('theme-btn').textContent = t === 'dark' ? '[dark]' : '[light]';
+  localStorage.setItem('clipforge-theme', t);
+}
+
+document.getElementById('theme-btn').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme') || 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+});
+
+/* ── Paste zone drag/click focus ───────────────────────── */
+const pasteZone = document.getElementById('paste-zone');
+pasteZone.addEventListener('click', () => pasteZone.focus());
+
+/* ── Paste event ───────────────────────────────────────── */
+document.addEventListener('paste', handlePaste);
+
+function handlePaste(e) {
+  if (!e.clipboardData) {
+    setStatus('error', '[error]', 'Clipboard access failed. Try using Ctrl+V.');
+    return;
+  }
+  const items = e.clipboardData.items;
+  let imageItem = null;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) { imageItem = item; break; }
+  }
+  if (!imageItem) {
+    setStatus('error', '[error]', 'No image found. Copy a screenshot first, then press Ctrl+V.');
+    return;
+  }
+  const blob = imageItem.getAsFile();
+  if (!blob) {
+    setStatus('error', '[error]', 'Could not load this image.');
+    return;
+  }
+  loadImageBlob(blob, imageItem.type);
+}
+
+/* ── Drag and drop ─────────────────────────────────────── */
+pasteZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  pasteZone.classList.add('drag-over');
+});
+
+pasteZone.addEventListener('dragleave', () => {
+  pasteZone.classList.remove('drag-over');
+});
+
+pasteZone.addEventListener('drop', e => {
+  e.preventDefault();
+  pasteZone.classList.remove('drag-over');
+  const files = e.dataTransfer.files;
+  if (!files || files.length === 0) {
+    setStatus('error', '[error]', 'No file dropped.');
+    return;
+  }
+  const file = files[0];
+  if (!file.type.startsWith('image/')) {
+    setStatus('error', '[error]', 'Dropped file is not an image.');
+    return;
+  }
+  loadImageBlob(file, file.type);
+});
+
+/* ── Load image blob → show preview ───────────────────── */
+function loadImageBlob(blob, mime) {
+  setStatus('loading', '[loading]', 'Reading image…');
+
+  if (currentObjectURL) URL.revokeObjectURL(currentObjectURL);
+  currentBlob = blob;
+  currentObjectURL = URL.createObjectURL(blob);
+
+  const img = document.getElementById('preview-img');
+  img.onload = () => {
+    originalW = img.naturalWidth;
+    originalH = img.naturalHeight;
+
+    // Meta info
+    const sizeKB = (blob.size / 1024).toFixed(1);
+    document.getElementById('img-meta').innerHTML =
+      `<span><strong>${originalW}</strong> × <strong>${originalH}</strong> px</span>` +
+      `<span>type: <strong>${mime || 'image/*'}</strong></span>` +
+      `<span>size: <strong>~${sizeKB} KB</strong></span>`;
+
+    // Show sections
+    document.getElementById('preview-section').classList.add('visible');
+    document.getElementById('export-section').classList.add('visible');
+
+    // Auto-generate filename
+    document.getElementById('filename').value = makeFilename(
+      document.getElementById('fmt').value
+    );
+
+    setStatus('ok', '[ok]', `Image loaded — ${originalW}×${originalH}px`);
+    pasteZone.classList.add('flash');
+    setTimeout(() => pasteZone.classList.remove('flash'), 400);
+  };
+
+  img.onerror = () => {
+    setStatus('error', '[error]', 'Could not load this image.');
+  };
+
+  img.src = currentObjectURL;
+}
+
+/* ── Status helper ─────────────────────────────────────── */
+function setStatus(type, badge, msg) {
+  const b = document.getElementById('status-badge');
+  const t = document.getElementById('status-text');
+  b.className = `status-badge ${type}`;
+  b.textContent = badge;
+  t.textContent = msg;
+}
+
+/* ── Filename generator ────────────────────────────────── */
+function makeFilename(ext) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const date = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const time = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
+  return `clipforge-${date}-${time}.${ext}`;
+}
+
+/* ── Format selector UI logic ──────────────────────────── */
+const fmtSel     = document.getElementById('fmt');
+const qualGroup  = document.getElementById('quality-group');
+const bgGroup    = document.getElementById('bg-group');
+const qualSlider = document.getElementById('quality');
+const qualVal    = document.getElementById('quality-val');
+
+function updateFormatUI() {
+  const fmt = fmtSel.value;
+  const lossy = fmt === 'jpeg' || fmt === 'webp';
+  qualGroup.style.display  = lossy ? '' : 'none';
+  bgGroup.classList.toggle('visible', fmt === 'jpeg');
+
+  // Update filename extension
+  const fn = document.getElementById('filename');
+  if (fn.value) {
+    fn.value = fn.value.replace(/\.(png|jpe?g|webp)$/i, `.${fmt === 'jpeg' ? 'jpg' : fmt}`);
+  }
+}
+
+fmtSel.addEventListener('change', updateFormatUI);
+updateFormatUI();
+
+qualSlider.addEventListener('input', () => {
+  qualVal.textContent = qualSlider.value + '%';
+});
+
+/* ── Resize UI ─────────────────────────────────────────── */
+const resizeSel   = document.getElementById('resize');
+const resizeExtra = document.getElementById('resize-extra');
+
+resizeSel.addEventListener('change', () => {
+  resizeExtra.classList.toggle('visible', resizeSel.value === 'custom');
+});
+
+/* ── Canvas rendering ──────────────────────────────────── */
+function renderToCanvas() {
+  const img = document.getElementById('preview-img');
+  if (!img.src || img.naturalWidth === 0) return null;
+
+  const fmt      = fmtSel.value;
+  const resize   = resizeSel.value;
+  const customW  = parseInt(document.getElementById('custom-width').value, 10);
+
+  let w = originalW;
+  let h = originalH;
+
+  if (resize === '50') {
+    w = Math.max(1, Math.round(originalW * 0.5));
+    h = Math.max(1, Math.round(originalH * 0.5));
+  } else if (resize === 'custom' && customW > 0) {
+    const ratio = customW / originalW;
+    w = customW;
+    h = Math.max(1, Math.round(originalH * ratio));
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  // Fill background for JPEG (which has no alpha)
+  if (fmt === 'jpeg') {
+    const bg = document.querySelector('input[name="bg"]:checked')?.value || 'white';
+    ctx.fillStyle = bg === 'black' ? '#000000' : '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas;
+}
+
+/* ── Download ──────────────────────────────────────────── */
+document.getElementById('download-btn').addEventListener('click', doDownload);
+
+function doDownload() {
+  if (!currentBlob) return;
+  const canvas = renderToCanvas();
+  if (!canvas) return;
+
+  const fmt     = fmtSel.value;
+  const quality = parseInt(qualSlider.value, 10) / 100;
+  const mime    = fmt === 'jpeg' ? 'image/jpeg' : fmt === 'webp' ? 'image/webp' : 'image/png';
+
+  let fn = document.getElementById('filename').value.trim();
+  if (!fn) fn = makeFilename(fmt === 'jpeg' ? 'jpg' : fmt);
+
+  canvas.toBlob(blob => {
+    if (!blob) { setStatus('error', '[error]', 'Export failed.'); return; }
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = fn;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    setStatus('ok', '[ok]', `Saved as ${fn}`);
+  }, mime, mime === 'image/png' ? undefined : quality);
+}
+
+/* ── Copy to clipboard ─────────────────────────────────── */
+document.getElementById('copy-btn').addEventListener('click', doCopy);
+
+async function doCopy() {
+  if (!currentBlob) return;
+
+  if (!navigator.clipboard || !window.ClipboardItem) {
+    showToast('Clipboard API not supported in this browser.');
+    return;
+  }
+
+  try {
+    const canvas  = renderToCanvas();
+    const quality = parseInt(qualSlider.value, 10) / 100;
+    const fmt     = fmtSel.value;
+    // Clipboard only accepts PNG reliably across browsers
+    const mime    = 'image/png';
+
+    const blob = await new Promise((res, rej) =>
+      canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob failed')), mime)
+    );
+
+    await navigator.clipboard.write([
+      new ClipboardItem({ [mime]: blob })
+    ]);
+    showToast('Image copied to clipboard!');
+  } catch (err) {
+    showToast('Copy failed: ' + err.message);
+  }
+}
+
+/* ── Clear ─────────────────────────────────────────────── */
+document.getElementById('clear-btn').addEventListener('click', clearAll);
+
+function clearAll() {
+  if (currentObjectURL) {
+    URL.revokeObjectURL(currentObjectURL);
+    currentObjectURL = null;
+  }
+  currentBlob = null;
+  originalW = 0; originalH = 0;
+
+  const img = document.getElementById('preview-img');
+  img.src = '';
+  document.getElementById('img-meta').innerHTML = '';
+  document.getElementById('preview-section').classList.remove('visible');
+  document.getElementById('export-section').classList.remove('visible');
+  document.getElementById('filename').value = '';
+  setStatus('ready', '[ready]', 'waiting for clipboard image');
+}
+
+/* ── Keyboard shortcuts ────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  // Skip if focus is in an input/select/textarea
+  const tag = document.activeElement?.tagName;
+  const inField = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+
+  if (e.key === 'Escape') { e.preventDefault(); clearAll(); return; }
+  if (!inField && e.key.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    if (currentBlob) doDownload();
+  }
+});
+
+/* ── Toast helper ──────────────────────────────────────── */
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ── Init status ───────────────────────────────────────── */
+setStatus('ready', '[ready]', 'waiting for clipboard image');
+</script>
+
+</body>
+</html>
